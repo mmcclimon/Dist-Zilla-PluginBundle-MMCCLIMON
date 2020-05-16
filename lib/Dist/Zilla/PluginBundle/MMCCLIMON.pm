@@ -94,6 +94,13 @@ has github_issues => (
   default => sub { $_[0]->payload->{github_issues} // 1 },
 );
 
+has homepage => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  default => sub { $_[0]->payload->{homepage} // '' },
+);
+
 has weaver_config => (
   is      => 'ro',
   isa     => 'Str',
