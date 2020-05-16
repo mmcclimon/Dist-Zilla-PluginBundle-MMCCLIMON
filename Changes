@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+5.012     2020-05-16 10:34:03-04:00 America/New_York
         - tweak from Rik's config to make it my own
 
 5.011     2018-04-22 15:00:43+02:00 Europe/Oslo
