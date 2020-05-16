@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - tweak from Rik's config to make it my own
 
 5.011     2018-04-22 15:00:43+02:00 Europe/Oslo
         - add version_by_branch to Git::NextVersion

@@ -1,5 +1,5 @@
-package Dist::Zilla::PluginBundle::RJBS;
-# ABSTRACT: BeLike::RJBS when you build your dists
+package Dist::Zilla::PluginBundle::MMCCLIMON;
+# ABSTRACT: BeLike::MMCCLIMON when you build your dists
 
 use Moose;
 use Dist::Zilla 2.100922; # TestRelease
@@ -10,7 +10,10 @@ with
 
 =head1 DESCRIPTION
 
-This is the plugin bundle that RJBS uses.  It is more or less equivalent to:
+This is the plugin bundle that MMCCLIMON uses.  It is stolen directly from RJBS,
+with some things removed and a few others added.
+
+It is more or less equivalent to:
 
   [Git::GatherDir]
   [@Basic]
@@ -33,7 +36,7 @@ This is the plugin bundle that RJBS uses.  It is more or less equivalent to:
   [Test::ReportPrereqs]
 
   [PodWeaver]
-  config_plugin = @RJBS
+  config_plugin = @MMCCLIMON
 
   [GithubMeta]
   remote = github
@@ -44,9 +47,19 @@ This is the plugin bundle that RJBS uses.  It is more or less equivalent to:
 
   [Git::Contributors]
 
-If the C<task> argument is given to the bundle, PodWeaver is replaced with
-TaskWeaver and Git::NextVersion is replaced with AutoVersion.  If the
-C<manual_version> argument is given, AutoVersion is omitted.
+  [CPANFile]
+
+  [CopyFilesFromBuild]
+  copy = Makefile.PL
+  copy = LICENSE
+  copy = cpanfile
+
+  [Git::GatherDir]
+  exclude_filename = Makefile.PL
+  exclude_filename = LICENSE
+  exclude_filename = cpanfile
+
+If the C<manual_version> argument is given, AutoVersion is omitted.
 
 If the C<github_issues> argument is given, and true, the F<META.*> files will
 point to GitHub issues for the dist's bugtracker.
@@ -74,13 +87,6 @@ has major_version => (
   default => sub { $_[0]->payload->{version} || 0 },
 );
 
-has is_task => (
-  is      => 'ro',
-  isa     => 'Bool',
-  lazy    => 1,
-  default => sub { $_[0]->payload->{task} },
-);
-
 has github_issues => (
   is      => 'ro',
   isa     => 'Bool',
@@ -88,18 +94,11 @@ has github_issues => (
   default => sub { $_[0]->payload->{github_issues} // 1 },
 );
 
-has homepage => (
-  is      => 'ro',
-  isa     => 'Str',
-  lazy    => 1,
-  default => sub { $_[0]->payload->{homepage} // '' },
-);
-
 has weaver_config => (
   is      => 'ro',
   isa     => 'Str',
   lazy    => 1,
-  default => sub { $_[0]->payload->{weaver_config} || '@RJBS' },
+  default => sub { $_[0]->payload->{weaver_config} || '@MMCCLIMON' },
 );
 
 sub mvp_multivalue_args { qw(dont_compile) }
@@ -121,21 +120,23 @@ has package_name_version => (
 sub configure {
   my ($self) = @_;
 
-  $self->log_fatal("you must not specify both weaver_config and is_task")
-    if $self->is_task and $self->weaver_config ne '@RJBS';
+  my @filenames = qw(
+    Makefile.PL
+    LICENSE
+    cpanfile
+  );
 
-  $self->add_plugins('Git::GatherDir');
+  $self->add_plugins([ 'Git::GatherDir' => { exclude_filename => \@filenames }]);
   $self->add_plugins('CheckPrereqsIndexed');
   $self->add_plugins('CheckExtraTests');
   $self->add_plugins(
-    [ PromptIfStale => 'RJBS-Outdated' => {
+    [ PromptIfStale => 'MMCCLIMON-Outdated' => {
       phase  => 'build',
-      module => 'Dist::Zilla::PluginBundle::RJBS',
+      module => 'Dist::Zilla::PluginBundle::MMCCLIMON',
     } ],
     [ PromptIfStale => 'CPAN-Outdated' => {
       phase => 'release',
       check_all_plugins => 1,
-      # check_all_prereqs => 1, # <-- not sure yet -- rjbs, 2013-09-23
     } ],
   );
   $self->add_bundle('@Filter', {
@@ -147,26 +148,16 @@ sub configure {
 
   $self->add_plugins('AutoPrereqs');
 
-  unless ($self->manual_version) {
-    if ($self->is_task) {
-      my $v_format = q<{{cldr('yyyyMMdd')}}>
-                   . sprintf('.%03u', ($ENV{N} || 0));
+  $self->add_plugins('CPANFile');
+  $self->add_plugins([ 'CopyFilesFromBuild' => { copy => \@filenames } ]);
 
-      $self->add_plugins([
-        AutoVersion => {
-          major     => $self->major_version,
-          format    => $v_format,
-          time_zone => 'America/New_York',
-        }
-      ]);
-    } else {
-      $self->add_plugins([
-        'Git::NextVersion' => {
-          version_regexp => '^([0-9]+\.[0-9]+)$',
-          version_by_branch => 1,
-        }
-      ]);
-    }
+  unless ($self->manual_version) {
+    $self->add_plugins([
+      'Git::NextVersion' => {
+        version_regexp => '^([0-9]+\.[0-9]+)$',
+        version_by_branch => 1,
+      }
+    ]);
   }
 
   $self->add_plugins(
@@ -195,20 +186,16 @@ sub configure {
     } ],
   );
 
-  if ($self->is_task) {
-    $self->add_plugins('TaskWeaver');
-  } else {
-    $self->add_plugins([
-      PodWeaver => {
-        config_plugin => $self->weaver_config,
-        replacer      => 'replace_with_comment',
-      }
-    ]);
-  }
+  $self->add_plugins([
+    PodWeaver => {
+      config_plugin => $self->weaver_config,
+      replacer      => 'replace_with_comment',
+    }
+  ]);
 
   $self->add_plugins(
     [ GithubMeta => {
-      remote => [ qw(github rjbs) ],
+      remote => [ qw(gitbox github upstream michael) ],
       issues => $self->github_issues,
       (length $self->homepage ? (homepage => $self->homepage) : ()),
     } ],
@@ -218,8 +205,8 @@ sub configure {
     tag_format => '%v',
     remotes_must_exist => 0,
     push_to    => [
-      'rjbs :',
-      'github :',
+      'gitbox :',
+      'michael :',
     ],
   });
 
